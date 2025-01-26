@@ -41,7 +41,7 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 	// Parse table name
 	table, ok := params["tableName"].(string)
 	if !ok {
-		writeError(w, fmt.Errorf("Missing table name"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrMissingTableName.Error()))
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 	if err != nil {
 		// TODO: use better logging
 		fmt.Printf("Error querying table: %v\n", err)
-		writeError(w, fmt.Errorf("Something went wrong"), http.StatusInternalServerError)
+		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	response := map[string]interface{}{"rows": data}
@@ -92,7 +92,7 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 		if err != nil {
 			// TODO: use better logging
 			fmt.Printf("Error getting table info: %v\n", err)
-			writeError(w, fmt.Errorf("Something went wrong"), http.StatusInternalServerError)
+			writeError(w, apiErrSomethingWentWrong())
 			return
 		}
 		response["tableInfo"] = tableInfo
@@ -104,13 +104,13 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{}) {
 	table, ok := params["tableName"].(string)
 	if !ok {
-		writeError(w, fmt.Errorf("Missing table name"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrMissingTableName.Error()))
 		return
 	}
 
 	ids, ok := convertToStrSlice(params["ids"])
 	if !ok {
-		writeError(w, fmt.Errorf("Invalid or missing ids"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrInvalidOrMissingIds.Error()))
 		return
 	}
 
@@ -118,13 +118,13 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 	if err != nil {
 		// TODO: use better logging
 		fmt.Printf("Error checking table existence: %v\n", err)
-		writeError(w, fmt.Errorf("Bad Request"), http.StatusBadRequest)
+		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	if !exists {
 		// TODO: use better logging
 		fmt.Printf("Error table does not exist: %s\n", table)
-		writeError(w, fmt.Errorf("Bad Request"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrInvalidInput.Error()))
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 	if err != nil {
 		// TODO: use better logging
 		fmt.Printf("Error deleting rows from table: %v\n", err)
-		writeError(w, fmt.Errorf("Something went wrong"), http.StatusInternalServerError)
+		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 
@@ -142,19 +142,21 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 func (h *Handler) updateRow(w http.ResponseWriter, params map[string]interface{}) {
 	table, ok := params["tableName"].(string)
 	if !ok {
-		writeError(w, fmt.Errorf("Missing table name"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrMissingTableName.Error()))
 		return
 	}
 
 	row, ok := params["row"].(map[string]interface{})
 	if !ok {
-		writeError(w, fmt.Errorf("Missing row"), http.StatusBadRequest)
+		writeError(w, apiErrBadRequest(ErrMissingRow.Error()))
 		return
 	}
 
 	err := editRow(h.db, table, row)
 	if err != nil {
-		writeError(w, fmt.Errorf("Failed to update row"), http.StatusInternalServerError)
+		// TODO: use better logging
+		fmt.Printf("Error editing row: %v\n", err)
+		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 
@@ -478,9 +480,9 @@ func editRow(db *sql.DB, tableName string, row map[string]interface{}) error {
 	return nil
 }
 
-func writeError(w http.ResponseWriter, err error, status int) {
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+func writeError(w http.ResponseWriter, err ApiError) {
+	w.WriteHeader(err.StatusCode)
+	json.NewEncoder(w).Encode(err)
 }
 
 func convertToStrSlice(val interface{}) ([]any, bool) {

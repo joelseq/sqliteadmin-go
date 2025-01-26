@@ -94,7 +94,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	if h.username != "" && h.password != "" {
 		authHeader := r.Header.Get("Authorization")
 		if h.username+":"+h.password != authHeader {
-			w.WriteHeader(http.StatusUnauthorized)
+			writeError(w, apiErrUnauthorized())
 			return
 		}
 	}
