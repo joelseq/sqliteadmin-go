@@ -1,5 +1,5 @@
-// Package sqliteadmin allows you to view and filter your SQLite database tables
-// by exposing an HTTP handler that you can easily integrate into any Go web
+// Package sqliteadmin allows you to view and managed your SQLite database by
+// exposing an HTTP handler that you can easily integrate into any Go web
 // framework.
 
 package sqliteadmin
