@@ -16,7 +16,7 @@ import (
 const addr string = ":8080"
 
 func main() {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := sql.Open("sqlite3", "sakila.db")
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
