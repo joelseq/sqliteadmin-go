@@ -247,6 +247,7 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 		writeError(w, fmt.Errorf("Bad Request"), http.StatusBadRequest)
 		return
 	}
+
 	rowsAffected, err := batchDelete(h.db, table, ids)
 	if err != nil {
 		// TODO: use better logging
@@ -408,6 +409,27 @@ func batchDelete(db *sql.DB, tableName string, ids []any) (int64, error) {
 		return 0, nil
 	}
 
+	// Get the primary key of the table
+	tableInfo, err := getTableInfo(db, tableName)
+	if err != nil {
+		return 0, fmt.Errorf("error getting primary key for delete: %v", err)
+	}
+	columns, ok := tableInfo["columns"].([]map[string]interface{})
+	if !ok {
+		return 0, fmt.Errorf("error getting primary key for delete")
+	}
+	var primaryKey string
+	for _, column := range columns {
+		if column["pk"].(int) == 1 {
+			primaryKey = column["name"].(string)
+			break
+		}
+	}
+
+	if primaryKey == "" {
+		return 0, fmt.Errorf("table %s does not have a primary key", tableName)
+	}
+
 	// Create the placeholders for the query (?,?,?)
 	placeholders := make([]string, len(ids))
 	for i := range ids {
@@ -416,8 +438,9 @@ func batchDelete(db *sql.DB, tableName string, ids []any) (int64, error) {
 
 	// Build the query
 	query := fmt.Sprintf(
-		"DELETE FROM %s WHERE id IN (%s)",
+		"DELETE FROM %s WHERE %s IN (%s)",
 		tableName,
+		primaryKey,
 		strings.Join(placeholders, ","),
 	)
 
