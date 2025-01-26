@@ -16,7 +16,7 @@ import (
 const addr string = ":8080"
 
 func main() {
-	db, err := sql.Open("sqlite3", "sakila.db")
+	db, err := sql.Open("sqlite3", "chinook.db")
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
@@ -37,15 +37,6 @@ func main() {
 	// Setup the handler for SQLiteAdmin
 	r.Post("/admin", sh.Handle)
 
-	fmt.Printf(`
-
- _______         __ __ __          _______     __            __        
-|     __|.-----.|  |__|  |_.-----.|   _   |.--|  |.--------.|__|.-----.
-|__     ||  _  ||  |  |   _|  -__||       ||  _  ||        ||  ||     |
-|_______||__   ||__|__|____|_____||___|___||_____||__|__|__||__||__|__|
-            |__|                                                       
-
-`)
 	fmt.Printf("--> Starting server on %s\n", addr)
 	http.ListenAndServe(":8080", r)
 }
