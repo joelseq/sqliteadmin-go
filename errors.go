@@ -3,6 +3,7 @@ package sqliteadmin
 import (
 	"errors"
 	"fmt"
+	"net/http"
 )
 
 var (
@@ -22,13 +23,13 @@ func (e ApiError) Error() string {
 }
 
 func apiErrUnauthorized() ApiError {
-	return ApiError{StatusCode: 401, Message: "Invalid credentials"}
+	return ApiError{StatusCode: http.StatusUnauthorized, Message: "Invalid credentials"}
 }
 
 func apiErrBadRequest(details string) ApiError {
-	return ApiError{StatusCode: 400, Message: "Bad request: " + details}
+	return ApiError{StatusCode: http.StatusBadRequest, Message: "Bad request: " + details}
 }
 
 func apiErrSomethingWentWrong() ApiError {
-	return ApiError{StatusCode: 500, Message: "Something went wrong"}
+	return ApiError{StatusCode: http.StatusInternalServerError, Message: "Something went wrong"}
 }
