@@ -15,9 +15,10 @@ type Handler struct {
 	db       *sql.DB
 	username string
 	password string
+	logger   Logger
 }
 
-type Query string
+type Command string
 
 type Filter struct {
 	Column   string   `json:"column"`
@@ -62,11 +63,11 @@ const (
 )
 
 const (
-	Ping       Query = "Ping"
-	ListTables Query = "ListTables"
-	GetTable   Query = "GetTable"
-	DeleteRows Query = "DeleteRows"
-	UpdateRow  Query = "UpdateRow"
+	Ping       Command = "Ping"
+	ListTables Command = "ListTables"
+	GetTable   Command = "GetTable"
+	DeleteRows Command = "DeleteRows"
+	UpdateRow  Command = "UpdateRow"
 )
 
 const pathPrefixPlaceholder = "%%__path_prefix__%%"
@@ -76,21 +77,47 @@ const DefaultOffset = 0
 
 var indexHtml embed.FS
 
-func NewHandler(db *sql.DB, username, password string) *Handler {
+type Logger interface {
+	Info(format string, args ...interface{})
+	Error(format string, args ...interface{})
+	Debug(format string, args ...interface{})
+}
+
+type LogLevel string
+
+const (
+	LogLevelInfo  LogLevel = "info"
+	LogLevelDebug LogLevel = "debug"
+)
+
+type Config struct {
+	Db       *sql.DB
+	Username string
+	Password string
+	Logger   Logger
+}
+
+// Creates a new HTTP handler which has a HandlePost method
+// that can be used to handle requests from https://sqliteadmin.dev.
+func NewHandler(c Config) *Handler {
 	return &Handler{
-		db:       db,
-		username: username,
-		password: password,
+		db:       c.Db,
+		username: c.Username,
+		password: c.Password,
+		logger:   c.Logger,
 	}
 }
 
-type QueryRequest struct {
-	Query  Query                  `json:"query"`
-	Params map[string]interface{} `json:"params"`
+type CommandRequest struct {
+	Command Command                `json:"command"`
+	Params  map[string]interface{} `json:"params"`
 }
 
-func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
+// Handles the incoming HTTP POST request. This is responsible for handling
+// all the supported operations from https://sqliteadmin.dev
+func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 	// Check for auth header that contains username and password
+	w.Header().Set("Content-Type", "application/json")
 	if h.username != "" && h.password != "" {
 		authHeader := r.Header.Get("Authorization")
 		if h.username+":"+h.password != authHeader {
@@ -99,17 +126,15 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	// w.Header().Set("Access-Control-Allow-Origin", "*")
-	var qr QueryRequest
-	err := json.NewDecoder(r.Body).Decode(&qr)
+	var cr CommandRequest
+	err := json.NewDecoder(r.Body).Decode(&cr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid Request Body"})
 		return
 	}
 
-	switch qr.Query {
+	switch cr.Command {
 	case Ping:
 		h.ping(w)
 		return
@@ -117,15 +142,15 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		h.listTables(w)
 		return
 	case GetTable:
-		h.getTable(w, qr.Params)
+		h.getTable(w, cr.Params)
 		return
 	case DeleteRows:
-		h.deleteRows(w, qr.Params)
+		h.deleteRows(w, cr.Params)
 		return
 	case UpdateRow:
-		h.updateRow(w, qr.Params)
+		h.updateRow(w, cr.Params)
 		return
 	default:
-		http.Error(w, "Invalid query", http.StatusBadRequest)
+		http.Error(w, "Invalid command", http.StatusBadRequest)
 	}
 }
