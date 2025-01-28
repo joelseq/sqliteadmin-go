@@ -12,14 +12,17 @@ import (
 )
 
 func (h *Handler) ping(w http.ResponseWriter) {
+	h.logger.Info("Command: Ping")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 func (h *Handler) listTables(w http.ResponseWriter) {
+	h.logger.Info("Command: ListTables")
 	rows, err := h.db.Query("SELECT name FROM sqlite_master WHERE type='table';")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error(fmt.Sprintf("Error listing tables: %v", err))
+		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	defer rows.Close()
@@ -28,7 +31,8 @@ func (h *Handler) listTables(w http.ResponseWriter) {
 	for rows.Next() {
 		var table string
 		if err := rows.Scan(&table); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error(fmt.Sprintf("Error scanning rows: %v", err))
+			writeError(w, apiErrSomethingWentWrong())
 			return
 		}
 		tables = append(tables, table)
@@ -65,23 +69,24 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 		}
 	}
 
+	h.logger.Info(fmt.Sprintf("Command: GetTable, table=%s, limit=%d, offset=%d", table, limit, offset))
+
 	var condition *Condition
 	conditionParam, ok := params["condition"].(interface{})
 	if ok {
-		condition, ok = toCondition(conditionParam)
+		condition, ok = toCondition(conditionParam, h.logger)
 		if !ok {
-			// TODO: use better logging
-			fmt.Println("Could not convert condition")
+			writeError(w, apiErrBadRequest("Invalid condition"))
+			return
 		}
+		h.logger.Debug(fmt.Sprintf("Condition provided: %v", condition))
 	} else {
-		// TODO: use better logging
-		fmt.Println("No filters provided")
+		h.logger.Debug(fmt.Sprintf("No condition provided"))
 	}
 
-	data, err := queryTable(h.db, table, condition, limit, offset)
+	data, err := queryTable(h.db, table, condition, limit, offset, h.logger)
 	if err != nil {
-		// TODO: use better logging
-		fmt.Printf("Error querying table: %v\n", err)
+		h.logger.Error(fmt.Sprintf("Error querying table: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
@@ -90,13 +95,13 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 	if params["includeInfo"] == true {
 		tableInfo, err := getTableInfo(h.db, table)
 		if err != nil {
-			// TODO: use better logging
-			fmt.Printf("Error getting table info: %v\n", err)
+			h.logger.Error(fmt.Sprintf("Error getting table info: %v", err))
 			writeError(w, apiErrSomethingWentWrong())
 			return
 		}
 		response["tableInfo"] = tableInfo
 	}
+	h.logger.Info(fmt.Sprintf("Fetched %d rows", len(data)))
 
 	json.NewEncoder(w).Encode(response)
 }
@@ -114,27 +119,27 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 		return
 	}
 
+	h.logger.Info(fmt.Sprintf("Command: DeleteRows, table=%s, ids=%v", table, ids))
+
 	exists, err := checkTableExists(h.db, table)
 	if err != nil {
-		// TODO: use better logging
-		fmt.Printf("Error checking table existence: %v\n", err)
+		h.logger.Error(fmt.Sprintf("Error checking table existence: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	if !exists {
-		// TODO: use better logging
-		fmt.Printf("Error table does not exist: %s\n", table)
+		h.logger.Error(fmt.Sprintf("Error table does not exist: %s", table))
 		writeError(w, apiErrBadRequest(ErrInvalidInput.Error()))
 		return
 	}
 
 	rowsAffected, err := batchDelete(h.db, table, ids)
 	if err != nil {
-		// TODO: use better logging
-		fmt.Printf("Error deleting rows from table: %v\n", err)
+		h.logger.Error(fmt.Sprintf("Error deleting rows from table: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
+	h.logger.Info(fmt.Sprintf("Deleted %d row(s)", rowsAffected))
 
 	json.NewEncoder(w).Encode(map[string]string{"rowsAffected": fmt.Sprintf("%d", rowsAffected)})
 }
@@ -152,13 +157,15 @@ func (h *Handler) updateRow(w http.ResponseWriter, params map[string]interface{}
 		return
 	}
 
+	h.logger.Info(fmt.Sprintf("Command: UpdateRow, table=%s, row=%v", table, row))
+
 	err := editRow(h.db, table, row)
 	if err != nil {
-		// TODO: use better logging
-		fmt.Printf("Error editing row: %v\n", err)
+		h.logger.Error(fmt.Sprintf("Error editing row: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
+	h.logger.Info("Row updated")
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
@@ -174,7 +181,7 @@ func checkTableExists(db *sql.DB, tableName string) (bool, error) {
 	return exists > 0, nil
 }
 
-func queryTable(db *sql.DB, tableName string, condition *Condition, limit int, offset int) ([]map[string]interface{}, error) {
+func queryTable(db *sql.DB, tableName string, condition *Condition, limit int, offset int, logger Logger) ([]map[string]interface{}, error) {
 	// First, verify the table exists to prevent SQL injection
 	exists, err := checkTableExists(db, tableName)
 	if err != nil {
@@ -205,18 +212,15 @@ func queryTable(db *sql.DB, tableName string, condition *Condition, limit int, o
 		// Generate the conditions for the where clause
 		var conditionQuery string
 		conditionQuery, args = getCondition(condition)
-		// TODO: use better logging
-		fmt.Printf("Query: %s\n", conditionQuery)
-		// TODO: use better logging
-		fmt.Printf("Args: %v\n", args)
+		logger.Debug(fmt.Sprintf("ConditionQuery: %s", conditionQuery))
+		logger.Debug(fmt.Sprintf("Args: %v", args))
 		query += conditionQuery
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	} else {
 		query = fmt.Sprintf("SELECT * FROM %q LIMIT %d OFFSET %d", tableName, limit, offset)
 	}
 
-	// TODO: use better logging
-	fmt.Printf("About to perform query: `%s`\n", query)
+	logger.Info(fmt.Sprintf("About to perform query: `%s`", query))
 
 	// Now perform the actual query
 	rows, err = db.Query(query, args...)
@@ -505,7 +509,7 @@ func convertToStrSlice(val interface{}) ([]any, bool) {
 	return result, true
 }
 
-func toCondition(val interface{}) (*Condition, bool) {
+func toCondition(val interface{}, logger Logger) (*Condition, bool) {
 	// Check if val is a map
 	valMap, ok := val.(map[string]interface{})
 	if !ok {
@@ -518,23 +522,20 @@ func toCondition(val interface{}) (*Condition, bool) {
 	if valMap["cases"] != nil {
 		cases, ok := valMap["cases"].([]interface{})
 		if !ok {
-			// TODO: use better logging
-			fmt.Println("Cases is not an array")
+			logger.Debug("Cases is not an array")
 			return nil, false
 		}
 		for _, c := range cases {
 			caseMap, ok := c.(map[string]interface{})
 			if !ok {
-				// TODO: use better logging
-				fmt.Println("Case is not a map")
+				logger.Debug("Case is not a map")
 				return nil, false
 			}
 			// If the logicalOperator field exists then it is a Sub-Condition
 			if caseMap["logicalOperator"] != nil {
-				subCondition, ok := toCondition(caseMap)
+				subCondition, ok := toCondition(caseMap, logger)
 				if !ok {
-					// TODO: use better logging
-					fmt.Println("Could not convert sub-condition")
+					logger.Debug("Could not convert sub-condition")
 					return nil, false
 				}
 				condition.Cases = append(condition.Cases, *subCondition)
@@ -542,8 +543,7 @@ func toCondition(val interface{}) (*Condition, bool) {
 				filter := Filter{}
 				err := mapstructure.Decode(c, &filter)
 				if err != nil {
-					// TODO: use better logging
-					fmt.Printf("Error decoding filter: %v\n", err)
+					logger.Error(fmt.Sprintf("Error decoding filter: %v", err))
 					return nil, false
 				}
 				condition.Cases = append(condition.Cases, filter)

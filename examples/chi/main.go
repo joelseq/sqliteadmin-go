@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -20,7 +21,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
-	sh := sqliteadmin.NewHandler(db, "user", "password")
+
+	logger := slog.Default()
+
+	// Setup the handler for SQLiteAdmin
+	config := sqliteadmin.Config{
+		Db:       db,
+		Username: "user",
+		Password: "password",
+		Logger:   logger,
+	}
+	sh := sqliteadmin.NewHandler(config)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -35,7 +46,7 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 	// Setup the handler for SQLiteAdmin
-	r.Post("/admin", sh.Handle)
+	r.Post("/admin", sh.HandlePost)
 
 	fmt.Printf("--> Starting server on %s\n", addr)
 	http.ListenAndServe(":8080", r)
