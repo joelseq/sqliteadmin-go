@@ -6,7 +6,6 @@ package sqliteadmin
 
 import (
 	"database/sql"
-	"embed"
 	"encoding/json"
 	"net/http"
 )
@@ -60,6 +59,8 @@ const (
 	OperatorLessThanOrEquals    Operator = "lte"
 	OperatorGreaterThan         Operator = "gt"
 	OperatorGreaterThanOrEquals Operator = "gte"
+	OperatorIsNull              Operator = "null"
+	OperatorIsNotNull           Operator = "notnull"
 )
 
 const (
@@ -72,10 +73,10 @@ const (
 
 const pathPrefixPlaceholder = "%%__path_prefix__%%"
 
-const DefaultLimit = 100
-const DefaultOffset = 0
-
-var indexHtml embed.FS
+const (
+	DefaultLimit  = 100
+	DefaultOffset = 0
+)
 
 type Logger interface {
 	Info(format string, args ...interface{})
@@ -91,7 +92,7 @@ const (
 )
 
 type Config struct {
-	Db       *sql.DB
+	DB       *sql.DB
 	Username string
 	Password string
 	Logger   Logger
@@ -100,12 +101,18 @@ type Config struct {
 // Creates a new HTTP handler which has a HandlePost method
 // that can be used to handle requests from https://sqliteadmin.dev.
 func NewHandler(c Config) *Handler {
-	return &Handler{
-		db:       c.Db,
+	h := &Handler{
+		db:       c.DB,
 		username: c.Username,
 		password: c.Password,
 		logger:   c.Logger,
 	}
+
+	if h.logger == nil {
+		h.logger = &defaultLogger{}
+	}
+
+	return h
 }
 
 type CommandRequest struct {
@@ -154,3 +161,13 @@ func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid command", http.StatusBadRequest)
 	}
 }
+
+var _ Logger = &defaultLogger{}
+
+type defaultLogger struct{}
+
+func (l *defaultLogger) Info(format string, args ...interface{}) {}
+
+func (l *defaultLogger) Error(format string, args ...interface{}) {}
+
+func (l *defaultLogger) Debug(format string, args ...interface{}) {}

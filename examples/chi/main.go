@@ -26,7 +26,7 @@ func main() {
 
 	// Setup the handler for SQLiteAdmin
 	config := sqliteadmin.Config{
-		Db:       db,
+		DB:       db,
 		Username: "user",
 		Password: "password",
 		Logger:   logger,

@@ -31,7 +31,7 @@ func main() {
 
 	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
-			sHandler.Handle(w, r)
+			sHandler.HandlePost(w, r)
 		}
 	})
 

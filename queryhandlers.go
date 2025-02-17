@@ -72,7 +72,7 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 	h.logger.Info(fmt.Sprintf("Command: GetTable, table=%s, limit=%d, offset=%d", table, limit, offset))
 
 	var condition *Condition
-	conditionParam, ok := params["condition"].(interface{})
+	conditionParam, ok := params["condition"]
 	if ok {
 		condition, ok = toCondition(conditionParam, h.logger)
 		if !ok {
@@ -81,7 +81,7 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 		}
 		h.logger.Debug(fmt.Sprintf("Condition provided: %v", condition))
 	} else {
-		h.logger.Debug(fmt.Sprintf("No condition provided"))
+		h.logger.Debug("No condition provided")
 	}
 
 	data, err := queryTable(h.db, table, condition, limit, offset, h.logger)
@@ -241,7 +241,7 @@ func queryTable(db *sql.DB, tableName string, condition *Condition, limit int, o
 
 	// Iterate through rows
 	for rows.Next() {
-		err := rows.Scan(scanArgs...)
+		err = rows.Scan(scanArgs...)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row: %v", err)
 		}
@@ -306,6 +306,10 @@ func getClause(filter Filter) string {
 		return fmt.Sprintf("%s > ?", filter.Column)
 	case OperatorGreaterThanOrEquals:
 		return fmt.Sprintf("%s >= ?", filter.Column)
+	case OperatorIsNull:
+		return fmt.Sprintf("%s IS NULL", filter.Column)
+	case OperatorIsNotNull:
+		return fmt.Sprintf("%s IS NOT NULL", filter.Column)
 	default:
 		return ""
 	}
@@ -390,7 +394,7 @@ func getTableInfo(db *sql.DB, tableName string) (map[string]interface{}, error) 
 		var notNull int
 		var defaultValue interface{}
 		var pk int
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+		if err = rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
 			return nil, fmt.Errorf("error scanning row: %v", err)
 		}
 
