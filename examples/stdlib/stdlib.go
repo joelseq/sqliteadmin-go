@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -21,7 +22,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
-	sHandler := sqliteadmin.NewHandler(db, "user", "password")
+	logger := slog.Default()
+
+	config := sqliteadmin.Config{
+		DB:       db,
+		Username: "user",
+		Password: "password",
+		Logger:   logger,
+	}
+	sHandler := sqliteadmin.NewHandler(config)
 
 	mux := http.NewServeMux()
 

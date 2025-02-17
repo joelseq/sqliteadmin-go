@@ -488,7 +488,7 @@ func editRow(db *sql.DB, tableName string, row map[string]interface{}) error {
 	return nil
 }
 
-func writeError(w http.ResponseWriter, err ApiError) {
+func writeError(w http.ResponseWriter, err APIError) {
 	w.WriteHeader(err.StatusCode)
 	json.NewEncoder(w).Encode(err)
 }
