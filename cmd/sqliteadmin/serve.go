@@ -16,8 +16,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joelseq/sqliteadmin-go"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
+	_ "modernc.org/sqlite"
 )
 
 var port uint
@@ -70,7 +70,7 @@ func newHTTPServer(addr string, mux *chi.Mux) *http.Server {
 }
 
 func getRouter(dbPath, username, password string) *chi.Mux {
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}

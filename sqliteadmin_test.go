@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/joelseq/sqliteadmin-go"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 )
 
 func TestPing(t *testing.T) {
@@ -519,7 +519,7 @@ func readBody(t *testing.T, body io.ReadCloser) map[string]interface{} {
 }
 
 func setupDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	assert.NoError(t, err)
 
 	err = seedData(db)

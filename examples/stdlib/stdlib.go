@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/joelseq/sqliteadmin-go"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/cors"
+	_ "modernc.org/sqlite"
 	// "github.com/rs/cors"
 )
 
 func main() {
-	db, err := sql.Open("sqlite3", "test.db")
+	db, err := sql.Open("sqlite", "test.db")
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}

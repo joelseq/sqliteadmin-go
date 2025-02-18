@@ -11,13 +11,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joelseq/sqliteadmin-go"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 const addr string = ":8080"
 
 func main() {
-	db, err := sql.Open("sqlite3", "chinook.db")
+	db, err := sql.Open("sqlite", "chinook.db")
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}

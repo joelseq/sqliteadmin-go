@@ -39,7 +39,6 @@ tidy:
 ## build: build the application
 .PHONY: build
 build:
-	# Include additional build steps, like TypeScript, SCSS or Tailwind compilation here...
 	go build -o=/tmp/bin/${binary_name} ${main_package_path}
 
 ## run: run the application
