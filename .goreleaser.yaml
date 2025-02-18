@@ -19,6 +19,7 @@ builds:
   - env:
       - CGO_ENABLED=0
     main: ./cmd/sqliteadmin
+    binary: sqliteadmin
     goos:
       - linux
       - darwin
