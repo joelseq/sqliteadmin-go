@@ -47,6 +47,3 @@ build:
 run: build
 	/tmp/bin/${binary_name}
 
-## run/live: run the application with reloading on file changes
-# .PHONY: run/live
-# run/live:

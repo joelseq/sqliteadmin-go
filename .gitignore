@@ -31,3 +31,5 @@ main
 
 # OS X generated file
 .DS_Store
+# Added by goreleaser init:
+dist/
