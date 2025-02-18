@@ -1,5 +1,7 @@
 # SQLite Admin
 
+[![Build](https://github.com/joelseq/sqliteadmin-go/actions/workflows/build.yml/badge.svg)](https://github.com/joelseq/sqliteadmin-go/actions/workflows/build.yml)
+
 SQLite Admin provides a lightweight web server to interact with a SQLite database. It allows you to:
 
 - Browse tables and their schemas.
