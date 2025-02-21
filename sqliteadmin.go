@@ -1,4 +1,4 @@
-// Package sqliteadmin allows you to view and managed your SQLite database by
+// Package sqliteadmin allows you to view and manage your SQLite database by
 // exposing an HTTP handler that you can easily integrate into any Go web
 // framework.
 
@@ -10,7 +10,7 @@ import (
 	"net/http"
 )
 
-type Handler struct {
+type Admin struct {
 	db       *sql.DB
 	username string
 	password string
@@ -98,10 +98,10 @@ type Config struct {
 	Logger   Logger
 }
 
-// Creates a new HTTP handler which has a HandlePost method
-// that can be used to handle requests from https://sqliteadmin.dev.
-func NewHandler(c Config) *Handler {
-	h := &Handler{
+// Returns a *Admin which has a HandlePost method that can be used to handle
+// requests from https://sqliteadmin.dev.
+func New(c Config) *Admin {
+	h := &Admin{
 		db:       c.DB,
 		username: c.Username,
 		password: c.Password,
@@ -122,12 +122,12 @@ type CommandRequest struct {
 
 // Handles the incoming HTTP POST request. This is responsible for handling
 // all the supported operations from https://sqliteadmin.dev
-func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
+func (a *Admin) HandlePost(w http.ResponseWriter, r *http.Request) {
 	// Check for auth header that contains username and password
 	w.Header().Set("Content-Type", "application/json")
-	if h.username != "" && h.password != "" {
+	if a.username != "" && a.password != "" {
 		authHeader := r.Header.Get("Authorization")
-		if h.username+":"+h.password != authHeader {
+		if a.username+":"+a.password != authHeader {
 			writeError(w, apiErrUnauthorized())
 			return
 		}
@@ -143,19 +143,19 @@ func (h *Handler) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	switch cr.Command {
 	case Ping:
-		h.ping(w)
+		a.ping(w)
 		return
 	case ListTables:
-		h.listTables(w)
+		a.listTables(w)
 		return
 	case GetTable:
-		h.getTable(w, cr.Params)
+		a.getTable(w, cr.Params)
 		return
 	case DeleteRows:
-		h.deleteRows(w, cr.Params)
+		a.deleteRows(w, cr.Params)
 		return
 	case UpdateRow:
-		h.updateRow(w, cr.Params)
+		a.updateRow(w, cr.Params)
 		return
 	default:
 		http.Error(w, "Invalid command", http.StatusBadRequest)

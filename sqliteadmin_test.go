@@ -478,10 +478,10 @@ func setupTestServer(t *testing.T) (*TestServer, func()) {
 		Password: "password",
 	}
 
-	h := sqliteadmin.NewHandler(c)
+	a := sqliteadmin.New(c)
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", h.HandlePost)
+	mux.HandleFunc("/", a.HandlePost)
 
 	srv := httptest.NewServer(mux)
 

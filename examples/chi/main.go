@@ -24,14 +24,13 @@ func main() {
 
 	logger := slog.Default()
 
-	// Setup the handler for SQLiteAdmin
 	config := sqliteadmin.Config{
 		DB:       db,
 		Username: "user",
 		Password: "password",
 		Logger:   logger,
 	}
-	sh := sqliteadmin.NewHandler(config)
+	admin := sqliteadmin.New(config)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -46,7 +45,7 @@ func main() {
 		w.Write([]byte("welcome"))
 	})
 	// Setup the handler for SQLiteAdmin
-	r.Post("/admin", sh.HandlePost)
+	r.Post("/admin", admin.HandlePost)
 
 	fmt.Printf("--> Starting server on %s\n", addr)
 	http.ListenAndServe(":8080", r)

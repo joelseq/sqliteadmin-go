@@ -14,7 +14,6 @@ import (
 	"github.com/joelseq/sqliteadmin-go"
 	"github.com/rs/cors"
 	_ "modernc.org/sqlite"
-	// "github.com/rs/cors"
 )
 
 func main() {
@@ -30,7 +29,7 @@ func main() {
 		Password: "password",
 		Logger:   logger,
 	}
-	sHandler := sqliteadmin.NewHandler(config)
+	admin := sqliteadmin.New(config)
 
 	mux := http.NewServeMux()
 
@@ -40,7 +39,7 @@ func main() {
 
 	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
-			sHandler.HandlePost(w, r)
+			admin.HandlePost(w, r)
 		}
 	})
 
@@ -92,10 +91,3 @@ func gracefulShutdown(apiServer *http.Server, done chan bool) {
 	// Notify the main goroutine that the shutdown is complete
 	done <- true
 }
-
-// func enableCors(w http.ResponseWriter) {
-// 	w.Header().Set("Access-Control-Allow-Origin", "*")
-// 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-// 	w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
-// 	w.Header().Set("Access-Control-Allow-Credentials", "true")
-// }

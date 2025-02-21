@@ -11,17 +11,17 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func (h *Handler) ping(w http.ResponseWriter) {
-	h.logger.Info("Command: Ping")
+func (a *Admin) ping(w http.ResponseWriter) {
+	a.logger.Info("Command: Ping")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
-func (h *Handler) listTables(w http.ResponseWriter) {
-	h.logger.Info("Command: ListTables")
-	rows, err := h.db.Query("SELECT name FROM sqlite_master WHERE type='table';")
+func (a *Admin) listTables(w http.ResponseWriter) {
+	a.logger.Info("Command: ListTables")
+	rows, err := a.db.Query("SELECT name FROM sqlite_master WHERE type='table';")
 	if err != nil {
-		h.logger.Error(fmt.Sprintf("Error listing tables: %v", err))
+		a.logger.Error(fmt.Sprintf("Error listing tables: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
@@ -31,7 +31,7 @@ func (h *Handler) listTables(w http.ResponseWriter) {
 	for rows.Next() {
 		var table string
 		if err := rows.Scan(&table); err != nil {
-			h.logger.Error(fmt.Sprintf("Error scanning rows: %v", err))
+			a.logger.Error(fmt.Sprintf("Error scanning rows: %v", err))
 			writeError(w, apiErrSomethingWentWrong())
 			return
 		}
@@ -41,7 +41,7 @@ func (h *Handler) listTables(w http.ResponseWriter) {
 	json.NewEncoder(w).Encode(map[string][]string{"tables": tables})
 }
 
-func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{}) {
+func (a *Admin) getTable(w http.ResponseWriter, params map[string]interface{}) {
 	// Parse table name
 	table, ok := params["tableName"].(string)
 	if !ok {
@@ -69,44 +69,44 @@ func (h *Handler) getTable(w http.ResponseWriter, params map[string]interface{})
 		}
 	}
 
-	h.logger.Info(fmt.Sprintf("Command: GetTable, table=%s, limit=%d, offset=%d", table, limit, offset))
+	a.logger.Info(fmt.Sprintf("Command: GetTable, table=%s, limit=%d, offset=%d", table, limit, offset))
 
 	var condition *Condition
 	conditionParam, ok := params["condition"]
 	if ok {
-		condition, ok = toCondition(conditionParam, h.logger)
+		condition, ok = toCondition(conditionParam, a.logger)
 		if !ok {
 			writeError(w, apiErrBadRequest("Invalid condition"))
 			return
 		}
-		h.logger.Debug(fmt.Sprintf("Condition provided: %v", condition))
+		a.logger.Debug(fmt.Sprintf("Condition provided: %v", condition))
 	} else {
-		h.logger.Debug("No condition provided")
+		a.logger.Debug("No condition provided")
 	}
 
-	data, err := queryTable(h.db, table, condition, limit, offset, h.logger)
+	data, err := queryTable(a.db, table, condition, limit, offset, a.logger)
 	if err != nil {
-		h.logger.Error(fmt.Sprintf("Error querying table: %v", err))
+		a.logger.Error(fmt.Sprintf("Error querying table: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	response := map[string]interface{}{"rows": data}
 
 	if params["includeInfo"] == true {
-		tableInfo, err := getTableInfo(h.db, table)
+		tableInfo, err := getTableInfo(a.db, table)
 		if err != nil {
-			h.logger.Error(fmt.Sprintf("Error getting table info: %v", err))
+			a.logger.Error(fmt.Sprintf("Error getting table info: %v", err))
 			writeError(w, apiErrSomethingWentWrong())
 			return
 		}
 		response["tableInfo"] = tableInfo
 	}
-	h.logger.Info(fmt.Sprintf("Fetched %d rows", len(data)))
+	a.logger.Info(fmt.Sprintf("Fetched %d rows", len(data)))
 
 	json.NewEncoder(w).Encode(response)
 }
 
-func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{}) {
+func (a *Admin) deleteRows(w http.ResponseWriter, params map[string]interface{}) {
 	table, ok := params["tableName"].(string)
 	if !ok {
 		writeError(w, apiErrBadRequest(ErrMissingTableName.Error()))
@@ -119,32 +119,32 @@ func (h *Handler) deleteRows(w http.ResponseWriter, params map[string]interface{
 		return
 	}
 
-	h.logger.Info(fmt.Sprintf("Command: DeleteRows, table=%s, ids=%v", table, ids))
+	a.logger.Info(fmt.Sprintf("Command: DeleteRows, table=%s, ids=%v", table, ids))
 
-	exists, err := checkTableExists(h.db, table)
+	exists, err := checkTableExists(a.db, table)
 	if err != nil {
-		h.logger.Error(fmt.Sprintf("Error checking table existence: %v", err))
+		a.logger.Error(fmt.Sprintf("Error checking table existence: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
 	if !exists {
-		h.logger.Error(fmt.Sprintf("Error table does not exist: %s", table))
+		a.logger.Error(fmt.Sprintf("Error table does not exist: %s", table))
 		writeError(w, apiErrBadRequest(ErrInvalidInput.Error()))
 		return
 	}
 
-	rowsAffected, err := batchDelete(h.db, table, ids)
+	rowsAffected, err := batchDelete(a.db, table, ids)
 	if err != nil {
-		h.logger.Error(fmt.Sprintf("Error deleting rows from table: %v", err))
+		a.logger.Error(fmt.Sprintf("Error deleting rows from table: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
-	h.logger.Info(fmt.Sprintf("Deleted %d row(s)", rowsAffected))
+	a.logger.Info(fmt.Sprintf("Deleted %d row(s)", rowsAffected))
 
 	json.NewEncoder(w).Encode(map[string]string{"rowsAffected": fmt.Sprintf("%d", rowsAffected)})
 }
 
-func (h *Handler) updateRow(w http.ResponseWriter, params map[string]interface{}) {
+func (a *Admin) updateRow(w http.ResponseWriter, params map[string]interface{}) {
 	table, ok := params["tableName"].(string)
 	if !ok {
 		writeError(w, apiErrBadRequest(ErrMissingTableName.Error()))
@@ -157,15 +157,15 @@ func (h *Handler) updateRow(w http.ResponseWriter, params map[string]interface{}
 		return
 	}
 
-	h.logger.Info(fmt.Sprintf("Command: UpdateRow, table=%s, row=%v", table, row))
+	a.logger.Info(fmt.Sprintf("Command: UpdateRow, table=%s, row=%v", table, row))
 
-	err := editRow(h.db, table, row)
+	err := editRow(a.db, table, row)
 	if err != nil {
-		h.logger.Error(fmt.Sprintf("Error editing row: %v", err))
+		a.logger.Error(fmt.Sprintf("Error editing row: %v", err))
 		writeError(w, apiErrSomethingWentWrong())
 		return
 	}
-	h.logger.Info("Row updated")
+	a.logger.Info("Row updated")
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }

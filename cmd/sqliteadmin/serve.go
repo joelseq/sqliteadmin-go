@@ -84,7 +84,7 @@ func getRouter(dbPath, username, password string) *chi.Mux {
 		Password: password,
 		Logger:   logger,
 	}
-	sh := sqliteadmin.NewHandler(config)
+	admin := sqliteadmin.New(config)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -95,7 +95,7 @@ func getRouter(dbPath, username, password string) *chi.Mux {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	r.Post("/", sh.HandlePost)
+	r.Post("/", admin.HandlePost)
 
 	return r
 }
